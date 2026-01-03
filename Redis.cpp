@@ -50,16 +50,20 @@ std::string Redis::executeValidCmd(Log::Type code) {
             std::cout << "\n";
         if (m_currValidCmd.size() == 4) {
             if (isStringDigit(m_currValidCmd[3])) {
-                if (code == Log::Logging)
-                    m_logger.saveToFile(m_currValidCmd);
+                if (code == Log::Logging) {
+                    m_logger.saveToFile(m_currValidCmd, m_timer);
+                    return setValue(m_currValidCmd[1], m_currValidCmd[2], std::stod(m_currValidCmd[3]));
+                } 
 
-                return setValue(m_currValidCmd[1], m_currValidCmd[2], std::stod(m_currValidCmd[3]));
+                return setValue(m_currValidCmd[1], m_currValidCmd[2], std::stod(m_currValidCmd[3]), Log::NoLogging);
             }
         } else {
-            if (code == Log::Logging)
-                m_logger.saveToFile(m_currValidCmd);
-
-            return setValue(m_currValidCmd[1], m_currValidCmd[2]);
+            if (code == Log::Logging) {
+                m_logger.saveToFile(m_currValidCmd, m_timer);
+                return setValue(m_currValidCmd[1], m_currValidCmd[2], DefaultValues::expireAfter);
+            }
+            
+            return setValue(m_currValidCmd[1], m_currValidCmd[2], DefaultValues::expireAfter, Log::NoLogging);
         }
     }
 
@@ -83,7 +87,7 @@ std::string Redis::executeValidCmd(Log::Type code) {
             std::cout << "\n";
         if (deleteValue(m_currValidCmd[1])) {
             if (code == Log::Logging)
-                m_logger.saveToFile(m_currValidCmd);
+                m_logger.saveToFile(m_currValidCmd, m_timer);
 
             return "Deleted Successfully!";
         } else {
@@ -177,16 +181,24 @@ bool Redis::deleteValue(const std::string& key) {
     }
 }
 
-std::string Redis::setValue(const std::string& key, const std::string& value, double exprireAfter) {
-    auto it { m_umap.insert({key, {{m_timer.now() + exprireAfter, value}}}) };
+std::string Redis::setValue(const std::string& key, const std::string& value, double exprireAfter, Log::Type log) {
+    std::pair<std::unordered_map<std::string, PayLoad>::iterator, bool> it{};
+    
+    // First if, only for if we read from file, we are setting already exists time 
+    if (log == Log::Type::NoLogging) {
+        it = m_umap.insert({key, {exprireAfter, value}});
+    } else {
+        // If we do logging, it means that the app is running and we need to set expiretime from now.
+        it = m_umap.insert({key, {m_timer.now() + exprireAfter, value}});
+    }
+
     if (it.second == true) {
         return "OK";
     } else {
         auto it { m_umap.find(key) };
         if (it != m_umap.end()) {
-            for (auto& [double_key, string_value]: it->second) {
-                string_value = value;
-            }
+            it->second.TTL = m_timer.now() + exprireAfter;
+            it->second.value = value;
         }
         return "Overrided: OK";
     }
@@ -195,20 +207,27 @@ std::string Redis::setValue(const std::string& key, const std::string& value, do
 std::pair<std::string, Err::Type> Redis::getValue(const std::string& key) const {
     auto it { m_umap.find(key) };
     if (it != m_umap.end()) {
-        for (const auto& [double_key, string_value]: it->second) {
-            if (double_key > m_timer.now()) {
-                return std::make_pair(string_value, Err::NoError);
-            } else {
-                return std::make_pair("Key is expired!", Err::Expired);
-            }
+        std::cout << it->second.TTL << " : now = " << m_timer.now() << '\n'; 
+        if (it->second.TTL > m_timer.now()) {
+            return std::make_pair(it->second.value, Err::NoError);
+        } else {
+            return std::make_pair("Key is expired!", Err::Expired);
         }
     }
     return std::make_pair("Error in Redis::getValue(): no such Key", Err::NoSuchKey);
 }
 
+// Just for knowledge
+bool isdigit(char c) {
+    if (c - '0' > 9) {
+        return false;
+    }
+    return true;
+}
+
 bool Redis::isStringDigit(const std::string& input) {
     for (const auto& c: input) {
-        if (!std::isdigit(c)){
+        if (!isdigit(c)){
             return false;
         }
     }
@@ -216,21 +235,30 @@ bool Redis::isStringDigit(const std::string& input) {
 }
 
 
-void Redis::readFromFile() {
-    std::ifstream file { m_logger.getFilePath() };
+bool file_is_empty(std::ifstream& file) {
+    return file.tellg() == 0 && file.peek() == std::ifstream::traits_type::eof();
+}
+
+void Redis::readFromFile(const std::string& path) {
+    std::ifstream file { path };
 
     if (!file.is_open()) {
-        std::cout << "Error in Logger::readFromFile(): Cannot open a file!\n";
+        std::cout << "Error in Logger::readFromFile(): " << path << ", Cannot open a file!\n";
         return;
     }
 
     std::string inputLine{};
 
-    while (std::getline(file, inputLine)) {
-        if (parser(inputLine)) {
-            executeValidCmd(Log::NoLogging);
+    if(file_is_empty(file)) {
+        std::cout << "Redis::readFromFile(): " << path << ", file is Empty\n";
+    } else {
+        std::cout << "Redis::readFromFile(): " << path << ", doing restore" << std::endl;
+        while (std::getline(file, inputLine)) {
+            if (parser(inputLine)) {
+                executeValidCmd(Log::NoLogging);
+            }
+            m_currValidCmd.clear();
         }
-        m_currValidCmd.clear();
     }
 }
 

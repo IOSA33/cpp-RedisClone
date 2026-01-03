@@ -23,31 +23,41 @@ namespace Log{
     };
 };
 
+namespace DefaultValues{
+    enum Type {
+        expireAfter = 100
+    };
+};
+
+struct PayLoad{
+    double TTL{};
+    std::string value{};
+};
+
 class Redis {
 private:
     Timer m_timer{};
     Logger m_logger;
-    std::unordered_map<std::string, std::unordered_map<double, std::string>> m_umap{};
+    std::unordered_map<std::string, PayLoad> m_umap{};
     std::vector<std::string> m_currValidCmd{};
 
 public:
-    // Network
-    // AnalyzeFile
-    Redis(const std::string& pathToFile) : m_logger(pathToFile) {
-        readFromFile();
+    Redis(const std::string& pathToFileAOF, const std::string& pathToFileRDB) : m_logger(pathToFileAOF, pathToFileRDB) {
+        readFromFile( m_logger.getFilePathSnapShot() );
+        readFromFile( m_logger.getFilePathAOF() );
     } 
     ~Redis() {
-        //m_logger.analyzeFile();
+        m_logger.snapshot_RDB(m_umap);
     }
 
     void run();
     // Returns response code
     bool parser(const std::string& input);
     std::string executeValidCmd(Log::Type code);
-    std::string setValue(const std::string& key, const std::string& value, double exprireAfter = 10.0);
+    std::string setValue(const std::string& key, const std::string& value, double exprireAfter, Log::Type log = Log::Logging);
     std::pair<std::string, Err::Type> getValue(const std::string& key) const;
     bool deleteValue(const std::string& key);
     bool isStringDigit(const std::string& input);
-    void readFromFile();
+    void readFromFile(const std::string& path);
     void clearCurrCmd() { m_currValidCmd.clear(); }
 };

@@ -5,7 +5,7 @@
 
 class TCPServer {
 private:
-    Redis m_redis{"Test.txt"};
+    Redis m_redis{"log.txt", "Snapshot.txt"};
     int m_port{};
 
 public:
