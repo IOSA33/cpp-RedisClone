@@ -72,9 +72,7 @@ int main() {
 
             if (response == "exit") {
                 std::cout << "See you and Happy life :)" << std::endl;
-                closesocket(clientSocket);
-                WSACleanup();
-                return 1;
+                break;
             }
 
             std::cout << "Server response is: [" << response << "]\n";
@@ -83,7 +81,9 @@ int main() {
             response.clear();
         } else {
             // If no data is received, print an error message
-            std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
+            std::cerr << "recv failed: " << WSAGetLastError() << '\n';
+            std::cout << "Server Closed!" << '\n';
+            break;
         }
     }
 

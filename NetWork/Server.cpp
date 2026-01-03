@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include "Server.h"
+#include <thread>
+#include <mutex>
 
 #pragma comment (lib, "ws2_32.lib");
 
@@ -47,7 +49,10 @@ int TCPServer::run() {
         std::cout << "Listen() is OK, I'm waiting for connections..." << std::endl;
     }
 
-    while(true) {
+    // Getting input in server side, another thread
+    std::thread thread_exit(&TCPServer::stop, this);
+
+    while(getIsRunning()) {
         // Accept functions
         SOCKET acceptSocket;
         acceptSocket = accept(in, NULL, NULL);
@@ -59,9 +64,9 @@ int TCPServer::run() {
         } else { 
             std::cout << "Client is connected!" << std::endl; 
         } 
-        
+
         // Loop for communicationg between user
-        while(true) {
+        while(getIsRunning()) {
             // recv() Receives data from the client
             char recvBuf[1024];
             int recvBuflen = sizeof(recvBuf);
@@ -106,6 +111,31 @@ int TCPServer::run() {
         }
     }
 
+    std::cout << "Server closing!" << '\n';
+
+    thread_exit.join();
     WSACleanup();
     return 1;
+}
+
+void TCPServer::setIsRunning(bool cmd) {
+    std::lock_guard<std::mutex> lk(m_mtx);
+    if (cmd) {
+        m_isRunning = true;
+    } else {
+        m_isRunning = false;
+    }
+}
+
+bool TCPServer::getIsRunning() {
+    std::lock_guard<std::mutex> lk(m_mtx);
+    return m_isRunning.load();
+}
+
+void TCPServer::stop() {
+    std::string input{};
+    while(input != "exit") {
+        std::getline(std::cin >> std::ws, input);
+    }
+    setIsRunning(false);
 }
