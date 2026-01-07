@@ -39,7 +39,7 @@ int TCPServer::run() {
 
     if (bind(in, (sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
         std::cout << "Can't bind socket! " << WSAGetLastError() << std::endl;
-		return 1;
+        return 1;
     }
 
     // Listen on port TCP
@@ -67,6 +67,7 @@ int TCPServer::run() {
 
         // Loop for communicationg between user
         while(getIsRunning()) {
+            std::cout << "IN!";
             // recv() Receives data from the client
             char recvBuf[1024];
             int recvBuflen = sizeof(recvBuf);
@@ -129,7 +130,7 @@ void TCPServer::setIsRunning(bool cmd) {
 
 bool TCPServer::getIsRunning() {
     std::lock_guard<std::mutex> lk(m_mtx);
-    return m_isRunning.load();
+    return m_isRunning;
 }
 
 void TCPServer::stop() {

@@ -10,7 +10,7 @@ private:
     std::mutex m_mtx;
     Redis m_redis{"log.txt", "Snapshot.txt"};
     int m_port{};
-    std::atomic<bool> m_isRunning{ true };
+    bool m_isRunning{ true };
 
 public:
     TCPServer(int port) : m_port(port) {}
