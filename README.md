@@ -14,6 +14,7 @@
 
 # How to Start:
 - Every command can run only in `./client.exe` .
+- For graceful shotdown the server write in running `./server.exe` following command `exit` .
 - In the main folder run following commands with Cmake for the server:
 ```
 mkdir build

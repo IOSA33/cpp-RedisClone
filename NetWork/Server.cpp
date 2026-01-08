@@ -12,6 +12,9 @@
 
 #pragma comment (lib, "ws2_32.lib");
 
+// Declarations
+int makeFakeConnection();
+
 int TCPServer::run() {
     constexpr size_t MAX_EPOLL_EVENTS { 16 };
 
@@ -164,4 +167,51 @@ void TCPServer::stop() {
         std::getline(std::cin >> std::ws, input);
     }
     setIsRunning(false);
+    makeFakeConnection();
+}
+
+int makeFakeConnection() {
+    WSADATA wsadata;
+    int wsaerr;
+    wsaerr = WSAStartup(MAKEWORD(2,2), &wsadata);
+    if (wsaerr != 0) {
+        std::cout << "Winsock dll not found" << std::endl;
+        return 1;
+    } else {
+        std::cout << "winsock DLL Found" << std::endl;
+        std::cout << "Status: " << wsadata.szSystemStatus << std::endl;
+    }
+    
+    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cout << "Error at socket()" << WSAGetLastError() << std::endl;
+        WSACleanup();
+        return 1;
+    } else {
+        std::cout << "Socket is OK" << std::endl;
+    }
+
+    // Client side hint
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(8080);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+    int connResult = connect(clientSocket, (sockaddr*)&addr, sizeof(addr));
+    if (connResult == SOCKET_ERROR) {
+        std::cerr << "Can't connect to a server, Err: " << WSAGetLastError() << std::endl;
+        closesocket(clientSocket);
+        WSACleanup();
+        return 1;
+    }
+
+    std::string input{"Closing server from fake Connection!"};
+    int bytes_sent = send(clientSocket, input.c_str(), input.size(), 0);
+    if (bytes_sent == SOCKET_ERROR) {
+        std::cerr << "send failed: " << WSAGetLastError() << std::endl;
+    }
+    
+    closesocket(clientSocket);
+    WSACleanup();
+    return 0;
 }
