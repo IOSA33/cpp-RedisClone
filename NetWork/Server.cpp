@@ -8,7 +8,7 @@
 #include "Server.h"
 #include <thread>
 #include <mutex>
-#include "../lib/wepoll.h"
+#include "../Include/wepoll.h"
 
 #pragma comment (lib, "ws2_32.lib");
 
@@ -66,7 +66,6 @@ int TCPServer::run() {
         return 1;
     }
 
-    
 
     while(getIsRunning()) {
 
