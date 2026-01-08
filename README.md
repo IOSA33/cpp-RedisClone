@@ -8,8 +8,8 @@
 # Commands that you can Run:
 - `SET [key] [value] *[EXPIRE]` - Store a string, `[*]` means optionally can pass.
 - `GET [key]` - Retrieve a string.
-- `DELETE [key]` - Deletes the key. 
 - `EXISTS [key]` - Returns 1 or 0.
+- `DEL [key]` - Deletes the key. 
 - `exit` - Disconnects from server.
 
 # How to Start:
