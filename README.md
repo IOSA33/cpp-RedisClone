@@ -9,17 +9,25 @@
 - `SET [key] [value] *[EXPIRE]` - Store a string, `[*]` means optionally can pass.
 - `GET [key]` - Retrieve a string.
 - `DELETE [key]` - Deletes the key. 
+- `EXISTS [key]` - Returns 1 or 0.
 - `exit` - Disconnects from server.
 
 # How to Start:
 - Every command can run only in `./client.exe` .
-- In the folder run following commands:
+- In the main folder run following commands with Cmake for the server:
 ```
-g++ main.cpp Redis.cpp Logger.cpp NetWork/Server.cpp -lws2_32 -o app 
+mkdir build
+cd build
+cmake ..
+ninja
+```
+
+- For the client run following command in terminal
+```
 g++ NetWork/Client.cpp -lws2_32 -o client
 ```
 
 - In the first terminal:
-Start the server: `./app.exe`
+Start the server in the build folder: `./app.exe`
 - In the Second terminal run:
 Connect the client: `./client.exe`

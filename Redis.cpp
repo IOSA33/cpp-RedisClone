@@ -9,7 +9,8 @@
 // Commands:
 // SET [key] [value] *[expire] : returns "OK"
 // GET [key] : returns "value"
-// DELETE [key] : returns "Deleted Successfully!"
+// DEL [key] : returns "DELETED"
+// EXISTS [key] : returns "1" or "0"
 // SAVE : saves explicitly logs to the file
 // exit : exists the program
 
@@ -19,7 +20,8 @@ void Redis::run() {
         std::cout << "\nWrite a command: \n";
         std::cout << "1: SET [key] [value] *[expire]\n";
         std::cout << "2: GET [key]\n";
-        std::cout << "3: DELETE [key]\n";
+        std::cout << "3: DEL [key]\n";
+        std::cout << "4: EXISTS [key]\n";
 
         std::string input{};
         std::getline(std::cin >> std::ws, input);
@@ -46,8 +48,6 @@ std::string Redis::executeValidCmd(Log::Type code) {
     }
 
     if (m_currValidCmd[0] == "SET") {
-        if (code == Log::Logging)
-            std::cout << "\n";
         if (m_currValidCmd.size() == 4) {
             if (isStringDigit(m_currValidCmd[3])) {
                 if (code == Log::Logging) {
@@ -68,7 +68,6 @@ std::string Redis::executeValidCmd(Log::Type code) {
     }
 
     if (m_currValidCmd[0] == "GET") {
-        std::cout << "\n";
         auto result { getValue(m_currValidCmd[1]) };
         if (result.second == Err::NoError) {
             return result.first;
@@ -82,18 +81,23 @@ std::string Redis::executeValidCmd(Log::Type code) {
         }
     }
 
-    if (m_currValidCmd[0] == "DELETE") {
-        if (code == Log::Logging)
-            std::cout << "\n";
+    if (m_currValidCmd[0] == "DEL") {
         if (deleteValue(m_currValidCmd[1])) {
             if (code == Log::Logging)
                 m_logger.saveToFile(m_currValidCmd, m_timer);
 
-            return "Deleted Successfully!";
+            return "DELETED";
         } else {
             return "Error in Redis::executeValidCmd()/deleteValue(): Cannot delete a key!";
         }
-        return "DELETE has less than a 2 arguments";
+    }
+
+    if (m_currValidCmd[0] == "EXISTS") {
+        if (exists(m_currValidCmd[1])) {
+            return "1";
+        } else {
+            return "0";
+        }
     }
 
     return "Error in Redis::executeValidCmd(): unknown Command";
@@ -157,17 +161,29 @@ bool Redis::parser(const std::string& s) {
             return false;
         }
     }
-    if (vec[0] == "DELETE") {
+    if (vec[0] == "DEL") {
         if (vec.size() == 2) {
             for (size_t valid = 0; valid < 2; ++valid) {
                 m_currValidCmd.emplace_back(vec[valid]);
             }
             return true;
         } else {
-            std::cout << "DELETE has less/more than a 2 arguments" << '\n';
+            std::cout << "DEL has less/more than a 2 arguments" << '\n';
             return false;
         }
     }
+    if (vec[0] == "EXISTS") {
+        if (vec.size() == 2) {
+            for (size_t valid = 0; valid < 2; ++valid) {
+                m_currValidCmd.emplace_back(vec[valid]);
+            }
+            return true;
+        } else {
+            std::cout << "EXISTS has less/more than a 2 arguments" << '\n';
+            return false;
+        }
+    }
+
     std::cout << "Error in Redis::parser(): unknown Command" << '\n';
     return false;
 }
@@ -200,22 +216,31 @@ std::string Redis::setValue(const std::string& key, const std::string& value, do
             it->second.TTL = m_timer.now() + exprireAfter;
             it->second.value = value;
         }
-        return "Overrided: OK";
+        return "OK";
     }
 }
 
 std::pair<std::string, Err::Type> Redis::getValue(const std::string& key) const {
     auto it { m_umap.find(key) };
     if (it != m_umap.end()) {
-        std::cout << it->second.TTL << " : now = " << m_timer.now() << '\n'; 
         if (it->second.TTL > m_timer.now()) {
             return std::make_pair(it->second.value, Err::NoError);
         } else {
-            return std::make_pair("Key is expired!", Err::Expired);
+            return std::make_pair("nil", Err::Expired);
         }
     }
-    return std::make_pair("Error in Redis::getValue(): no such Key", Err::NoSuchKey);
+    return std::make_pair("nil", Err::NoSuchKey);
 }
+
+bool Redis::exists(const std::string& key) const {
+    auto it { m_umap.find(key) };
+    if (it != m_umap.end()) {
+        return true;
+    } 
+
+    return false;
+}
+
 
 // Just for knowledge
 bool isdigit(char c) {

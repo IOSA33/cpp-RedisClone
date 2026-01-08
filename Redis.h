@@ -39,6 +39,7 @@ private:
     Timer m_timer{};
     Logger m_logger;
     std::unordered_map<std::string, PayLoad> m_umap{};
+    std::unordered_map<int, std::vector<std::string>> m_sessions{};
     std::vector<std::string> m_currValidCmd{};
 
 public:
@@ -57,6 +58,7 @@ public:
     std::string setValue(const std::string& key, const std::string& value, double exprireAfter, Log::Type log = Log::Logging);
     std::pair<std::string, Err::Type> getValue(const std::string& key) const;
     bool deleteValue(const std::string& key);
+    bool exists(const std::string& key) const;
     bool isStringDigit(const std::string& input);
     void readFromFile(const std::string& path);
     void clearCurrCmd() { m_currValidCmd.clear(); }

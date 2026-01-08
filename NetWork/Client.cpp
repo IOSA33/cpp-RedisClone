@@ -51,7 +51,8 @@ int main() {
         std::cout << "\nWrite a command: \n";
         std::cout << "1: SET [key] [value] *[expire]\n";
         std::cout << "2: GET [key]\n";
-        std::cout << "3: DELETE [key]\n";
+        std::cout << "3: DEL [key]\n";
+        std::cout << "3: EXISTS [key]\n";
 
         std::string input{};
         std::getline(std::cin >> std::ws, input);

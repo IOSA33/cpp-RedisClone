@@ -67,7 +67,6 @@ int TCPServer::run() {
 
         // Loop for communicationg between user
         while(getIsRunning()) {
-            std::cout << "IN!";
             // recv() Receives data from the client
             char recvBuf[1024];
             int recvBuflen = sizeof(recvBuf);
@@ -78,7 +77,7 @@ int TCPServer::run() {
                 // Handling request on server
                 std::string input(recvBuf, bytesRecv);
 
-                std::cout << "(User input): [" << input << "]\n";
+                std::cout << "\n(User input): [" << input << "]\n";
                 std::cout << "Recieved bytes from user: [" << bytesRecv << "]\n";
                 std::string response{};
                 // If input is correct
@@ -88,7 +87,6 @@ int TCPServer::run() {
                     m_redis.clearCurrCmd();
                 } else {
                     response = "Unknown command";
-                    std::cout << '\n';
                     m_redis.clearCurrCmd();
                 }
 
