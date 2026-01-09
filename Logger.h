@@ -18,7 +18,7 @@ public:
 
     void saveToFile(const std::vector<std::string>& vecLine, Timer& timer);
     void analyzeFile_AOF();
-    void snapshot_RDB(const std::unordered_map<std::string, PayLoad>& u_map);
+    void snapshot_RDB(const std::unordered_map<std::string, PayLoad>& u_map, Timer& timer);
     const std::string& getFilePathAOF() { return m_filePathAOF; }
     const std::string& getFilePathSnapShot() { return m_filePathSnapshot; }
 };

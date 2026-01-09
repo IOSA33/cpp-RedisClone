@@ -10,6 +10,7 @@
 - `GET [key]` - Retrieve a string.
 - `EXISTS [key]` - Returns 1 or 0.
 - `DEL [key]` - Deletes the key. 
+- `KEYS *` - Returns keys and its value
 - `exit` - Disconnects from server.
 
 # How to Start:

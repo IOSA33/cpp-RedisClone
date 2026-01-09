@@ -8,11 +8,18 @@
 
 // Commands:
 // SET [key] [value] *[expire] : returns "OK"
-// GET [key] : returns "value"
+// GET [key] : returns value
+// KEYS *: return every key and its value
+// KEYST [key]: return every key and its value from vector
 // DEL [key] : returns "DELETED"
+// DELT [key] : return "DELETED"
 // EXISTS [key] : returns "1" or "0"
 // SAVE : saves explicitly logs to the file
 // exit : exists the program
+
+// Delarations
+template<typename T>
+bool checkVecSize(size_t size, const std::vector<T>& vec, std::vector<std::string>& m_currValidCmd);
 
 // For local run without Server
 void Redis::run() {
@@ -20,8 +27,10 @@ void Redis::run() {
         std::cout << "\nWrite a command: \n";
         std::cout << "1: SET [key] [value] *[expire]\n";
         std::cout << "2: GET [key]\n";
-        std::cout << "3: DEL [key]\n";
-        std::cout << "4: EXISTS [key]\n";
+        std::cout << "3: KEYS *\n";
+        std::cout << "4: DEL [key]\n";
+        std::cout << "5: SAVE\n";
+        std::cout << "6: EXISTS [key]\n";
 
         std::string input{};
         std::getline(std::cin >> std::ws, input);
@@ -80,7 +89,6 @@ std::string Redis::executeValidCmd(Log::Type code) {
             }
         }
     }
-
     if (m_currValidCmd[0] == "DEL") {
         if (deleteValue(m_currValidCmd[1])) {
             if (code == Log::Logging)
@@ -91,7 +99,6 @@ std::string Redis::executeValidCmd(Log::Type code) {
             return "Error in Redis::executeValidCmd()/deleteValue(): Cannot delete a key!";
         }
     }
-
     if (m_currValidCmd[0] == "EXISTS") {
         if (exists(m_currValidCmd[1])) {
             return "1";
@@ -99,6 +106,16 @@ std::string Redis::executeValidCmd(Log::Type code) {
             return "0";
         }
     }
+    if (m_currValidCmd[0] == "KEYS" && m_currValidCmd[1] == "*") {
+        return getAll();
+    }
+    if(m_currValidCmd[0] == "SAVE") {
+        saveToSnapshot();
+        return "Saved succesfully";
+    }
+    if(m_currValidCmd[0] == "KEYST") {
+        return getAllSessions(m_currValidCmd[1]);
+    } 
 
     return "Error in Redis::executeValidCmd(): unknown Command";
 }
@@ -151,41 +168,59 @@ bool Redis::parser(const std::string& s) {
         }
     }
     if (vec[0] == "GET") {
-        if (vec.size() == 2) {
-            for (size_t valid = 0; valid < 2; ++valid) {
-                m_currValidCmd.emplace_back(vec[valid]);
-            }
-            return true;
-        } else {
-            std::cout << "GET has less/more than a 2 arguments" << '\n';
-            return false;
-        }
+        return checkVecSize(2, vec, m_currValidCmd);
     }
     if (vec[0] == "DEL") {
-        if (vec.size() == 2) {
-            for (size_t valid = 0; valid < 2; ++valid) {
-                m_currValidCmd.emplace_back(vec[valid]);
-            }
-            return true;
-        } else {
-            std::cout << "DEL has less/more than a 2 arguments" << '\n';
-            return false;
-        }
+        return checkVecSize(2, vec, m_currValidCmd);
     }
     if (vec[0] == "EXISTS") {
-        if (vec.size() == 2) {
-            for (size_t valid = 0; valid < 2; ++valid) {
-                m_currValidCmd.emplace_back(vec[valid]);
-            }
-            return true;
-        } else {
-            std::cout << "EXISTS has less/more than a 2 arguments" << '\n';
-            return false;
-        }
+        return checkVecSize(2, vec, m_currValidCmd);
+    }
+    if (vec[0] == "KEYS") {
+        return checkVecSize(2, vec, m_currValidCmd);
+    }
+    if(vec[0] == "SAVE") {
+        return checkVecSize(1, vec, m_currValidCmd);
+    }
+    if(vec[0] == "KEYST") {
+        return checkVecSize(2, vec, m_currValidCmd);
+    }
+    // TODO:
+    if(vec[0] == "DELT") {
+        return checkVecSize(2, vec, m_currValidCmd);
     }
 
     std::cout << "Error in Redis::parser(): unknown Command" << '\n';
     return false;
+}
+
+template<typename T>
+bool checkVecSize(size_t size, const std::vector<T>& vec, std::vector<std::string>& m_currValidCmd) {
+    if (vec.size() == size) {
+        for (size_t valid = 0; valid < size; ++valid) {
+            m_currValidCmd.emplace_back(vec[valid]);
+        }
+        return true;
+    } else {
+        std::cout << "INPUT has less/more than a " << size << " arguments" << '\n';
+        return false;
+    }
+}
+
+std::string Redis::getAll() {
+    std::string response{};
+    for (const auto& key: m_umap) {
+        response += key.first;
+        response.push_back(' ');
+        response += key.second.value;
+        response.push_back('\n');
+    }
+
+    if (response.empty()) {
+        return "nil";
+    }
+
+    return response;
 }
 
 bool Redis::deleteValue(const std::string& key) {
@@ -203,21 +238,50 @@ std::string Redis::setValue(const std::string& key, const std::string& value, do
     // First if, only for if we read from file, we are setting already exists time 
     if (log == Log::Type::NoLogging) {
         it = m_umap.insert({key, {exprireAfter, value}});
+
     } else {
         // If we do logging, it means that the app is running and we need to set expiretime from now.
         it = m_umap.insert({key, {m_timer.now() + exprireAfter, value}});
     }
 
     if (it.second == true) {
+        addToListSessions(key, value, exprireAfter);
         return "OK";
     } else {
         auto it { m_umap.find(key) };
         if (it != m_umap.end()) {
+            addToListSessions(key, value, m_timer.now() + exprireAfter);
             it->second.TTL = m_timer.now() + exprireAfter;
             it->second.value = value;
         }
         return "OK";
     }
+}
+
+bool Redis::addToListSessions(const std::string& key, const std::string& value, double exprireAfter) {
+    auto [it, inserted] = m_sessions.try_emplace(value);
+
+    // Key exists or does not exists we just add new vector
+    it->second.emplace_back(exprireAfter, key);
+    return true;
+}
+
+std::string Redis::getAllSessions(const std::string& key) {
+    std::string response{};
+
+    // In our redisClone we just store email as key for user id
+    auto it { m_sessions.find(key) };
+    if (it != m_sessions.end()) {
+        for (const auto& i: it->second) {
+            response.append(i.value);
+            response.push_back('\n');
+        }
+    }
+
+    if (response.empty()) {
+        return "nil";
+    }
+    return response;
 }
 
 std::pair<std::string, Err::Type> Redis::getValue(const std::string& key) const {
@@ -259,6 +323,9 @@ bool Redis::isStringDigit(const std::string& input) {
     return true;
 }
 
+void Redis::saveToSnapshot() {
+    m_logger.snapshot_RDB(m_umap, m_timer);
+}
 
 bool file_is_empty(std::ifstream& file) {
     return file.tellg() == 0 && file.peek() == std::ifstream::traits_type::eof();

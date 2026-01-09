@@ -177,9 +177,6 @@ int makeFakeConnection() {
     if (wsaerr != 0) {
         std::cout << "Winsock dll not found" << std::endl;
         return 1;
-    } else {
-        std::cout << "winsock DLL Found" << std::endl;
-        std::cout << "Status: " << wsadata.szSystemStatus << std::endl;
     }
     
     SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -187,8 +184,6 @@ int makeFakeConnection() {
         std::cout << "Error at socket()" << WSAGetLastError() << std::endl;
         WSACleanup();
         return 1;
-    } else {
-        std::cout << "Socket is OK" << std::endl;
     }
 
     // Client side hint

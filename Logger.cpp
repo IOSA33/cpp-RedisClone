@@ -32,7 +32,7 @@ void Logger::saveToFile(const std::vector<std::string>& vecLine, Timer& timer) {
     path.close();
 }
 
-void Logger::snapshot_RDB(const std::unordered_map<std::string, PayLoad>& u_map) {
+void Logger::snapshot_RDB(const std::unordered_map<std::string, PayLoad>& u_map, Timer& timer) {
     std::ofstream file { m_filePathSnapshot, std::ios::trunc };
     
     if (!file.is_open()) {
@@ -41,6 +41,9 @@ void Logger::snapshot_RDB(const std::unordered_map<std::string, PayLoad>& u_map)
     }
 
     for (const auto& line: u_map) {
+        if (timer.now() > line.second.TTL) {
+            continue;
+        }
         file << "SET " << line.first << ' ' << line.second.value << ' ' << line.second.TTL << ' ' << '\n';
     }
 

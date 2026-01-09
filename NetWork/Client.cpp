@@ -16,8 +16,8 @@ int main() {
         std::cout << "Winsock dll not found" << std::endl;
         return 1;
     } else {
-        std::cout << "Winsock DLL Found" << std::endl;
-        std::cout << "Status: " << wsadata.szSystemStatus << std::endl;
+        // std::cout << "Winsock DLL Found" << std::endl;
+        // std::cout << "Status: " << wsadata.szSystemStatus << std::endl;
     }
 
     SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -26,7 +26,7 @@ int main() {
         WSACleanup();
         return 1;
     } else {
-        std::cout << "Socket is OK" << std::endl;
+        // std::cout << "Socket is OK" << std::endl;
     }
 
     // Client side hint
@@ -51,11 +51,18 @@ int main() {
         std::cout << "\nWrite a command: \n";
         std::cout << "1: SET [key] [value] *[expire]\n";
         std::cout << "2: GET [key]\n";
-        std::cout << "3: DEL [key]\n";
-        std::cout << "3: EXISTS [key]\n";
+        std::cout << "3: KEYS *\n";
+        std::cout << "4: DEL [key]\n";
+        std::cout << "5: SAVE\n";
+        std::cout << "6: EXISTS [key]\n";
 
         std::string input{};
         std::getline(std::cin >> std::ws, input);
+
+        if (input == "exit") {
+            std::cout << "See you and Happy life :)" << std::endl;
+            break;
+        }
 
         std::cout << '\n';
         int bytes_sent = send(clientSocket, input.c_str(), input.size(), 0);
@@ -71,18 +78,12 @@ int main() {
         if (bytesRecv > 0) {
             std::string response(buff, bytesRecv);
 
-            if (response == "exit") {
-                std::cout << "See you and Happy life :)" << std::endl;
-                break;
-            }
-
             std::cout << "Server response is: [" << response << "]\n";
             std::cout << "Bytes received: [" << bytesRecv << "]\n";
 
             response.clear();
         } else {
-            // If no data is received, print an error message
-            std::cerr << "recv failed: " << WSAGetLastError() << '\n';
+            // If no data is received, server is closed!
             std::cout << "Server Closed!" << '\n';
             break;
         }

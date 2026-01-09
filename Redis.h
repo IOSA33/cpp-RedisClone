@@ -24,9 +24,7 @@ namespace Log{
 };
 
 namespace DefaultValues{
-    enum Type {
-        expireAfter = 100
-    };
+    constexpr int expireAfter { 100 };
 };
 
 struct PayLoad{
@@ -38,8 +36,11 @@ class Redis {
 private:
     Timer m_timer{};
     Logger m_logger;
+    // This hashmap is for session = payload, quick check for existance
     std::unordered_map<std::string, PayLoad> m_umap{};
-    std::unordered_map<int, std::vector<std::string>> m_sessions{};
+    // This hashmap contains every user sessions that he has,id = sessions
+    // We can delete/revoke them by one command and save only current session
+    std::unordered_map<std::string, std::vector<PayLoad>> m_sessions{};
     std::vector<std::string> m_currValidCmd{};
 
 public:
@@ -48,13 +49,17 @@ public:
         readFromFile( m_logger.getFilePathAOF() );
     } 
     ~Redis() {
-        m_logger.snapshot_RDB(m_umap);
+        m_logger.snapshot_RDB(m_umap, m_timer);
     }
 
     void run();
     // Returns response code
     bool parser(const std::string& input);
+    std::string getAll();
+    void saveToSnapshot();
     std::string executeValidCmd(Log::Type code);
+    bool addToListSessions(const std::string& key, const std::string& value, double exprireAfter);
+    std::string getAllSessions(const std::string& key);
     std::string setValue(const std::string& key, const std::string& value, double exprireAfter, Log::Type log = Log::Logging);
     std::pair<std::string, Err::Type> getValue(const std::string& key) const;
     bool deleteValue(const std::string& key);
